@@ -2,18 +2,27 @@ package com.example.controller;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.res.Configuration;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.service.autofill.TextValueSanitizer;
+import android.view.View;
+import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.Button;
 import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
     private SensorManager sensorManager;
     private TextView textView, textInfo;
+    private WebView cameraView;
+    private Button cameraButton;
 
     protected final static double RAD2DEG = 180/Math.PI;
 
@@ -29,7 +38,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     private String direction, leftAndRight;
 
-    private static final float initializePos = -9999999;
+    private static final int initializePos = 0;
 
     private static final float forwardActionVal = 20;
     private static final float backActionVal = -20;
@@ -43,9 +52,21 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        sensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
+
         textInfo = findViewById(R.id.text_info);
 
         textView = findViewById(R.id.text_view);
+
+        cameraView = findViewById(R.id.camera_view);
+        cameraView.setWebChromeClient(new WebChromeClient());
+        cameraView.setWebViewClient(new WebViewClient());
+        cameraView.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
+        cameraView.loadUrl("http://google.com");
+        cameraView.getSettings().setJavaScriptEnabled(true);
+
+        cameraButton = findViewById(R.id.camera_button);
+        cameraButton.setOnClickListener(cameraButtonClick);
 
 //        mqttService = new MqttService();
 
@@ -109,23 +130,26 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 startupZ = sensorZ;
             }
 
-            if (sensorY > startupY + forwardActionVal) {
+            if (sensorZ > startupZ + forwardActionVal) {
                 direction = "forward";
-            } else if (sensorY < startupY + backActionVal) {
+            } else if (sensorZ < startupZ + backActionVal) {
                 direction = "back";
             } else {
                 direction = "stop";
             }
 
-            if (sensorZ < startupZ + leftActionVal) {
-                leftAndRight = "left";
-            } else if (sensorZ > startupZ + rightActionVal) {
+            if (sensorX < startupX + leftActionVal) {
                 leftAndRight = "right";
+            } else if (sensorX > startupX + rightActionVal) {
+                leftAndRight = "left";
             } else {
                 leftAndRight = "straight";
             }
 
             String strTmp = "端末角度\n"
+                    + " startX: " + startupX + "\n"
+                    + " startY: " + startupY + "\n"
+                    + " startZ: " + startupZ + "\n"
                     + " X: " + sensorX + "\n"
                     + " Y: " + sensorY + "\n"
                     + " Z: " + sensorZ + "\n"
@@ -142,12 +166,21 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+
+        initSensor();
+    }
+
+    @Override
     public void onAccuracyChanged(Sensor sensor, int i) {
 
     }
 
     protected void initSensor(){
-        sensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
+        startupX = initializePos;
+        startupY = initializePos;
+        startupZ = initializePos;
     }
 
     private void showInfo(SensorEvent sensorEvent) {
@@ -167,4 +200,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         textInfo.setText(info);
     }
+
+    private View.OnClickListener cameraButtonClick = new View.OnClickListener() {
+        @Override
+        public void onClick(View view) {
+            if (cameraView.getVisibility() == View.VISIBLE) {
+                cameraView.setVisibility(View.GONE);
+            } else {
+                cameraView.setVisibility(View.VISIBLE);
+            }
+        }
+    };
 }
